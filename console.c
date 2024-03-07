@@ -221,6 +221,11 @@ void set_echo(bool on)
     echo = on ? 1 : 0;
 }
 
+static bool do_hello(int argc, char *argv[])
+{
+    return (bool) printf("Hello World\n");
+}
+
 /* Built-in commands */
 static bool do_quit(int argc, char *argv[])
 {
@@ -421,12 +426,12 @@ void init_cmd()
     param_list = NULL;
     err_cnt = 0;
     quit_flag = false;
-
     ADD_COMMAND(help, "Show summary", "");
     ADD_COMMAND(option,
                 "Display or set options. See 'Options' section for details",
                 "[name val]");
     ADD_COMMAND(quit, "Exit program", "");
+    ADD_COMMAND(hello, "Print hello message", "");
     ADD_COMMAND(source, "Read commands from source file", "");
     ADD_COMMAND(log, "Copy output to file", "file");
     ADD_COMMAND(time, "Time command execution", "cmd arg ...");
