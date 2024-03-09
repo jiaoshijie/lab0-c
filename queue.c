@@ -434,10 +434,65 @@ int q_descend(struct list_head *head)
     return size;
 }
 
+// The merged list will be placed to list1, and list2 will be an empty list
+// after this function call
+static void merge_two_list(struct list_head *list1,
+                           struct list_head *list2,
+                           bool descend)
+{
+    // NOTE: the pointer of list1 and list2 should both not be NULL, I think.
+    // NOTE: list1 and list2 also should not be empty lists.
+    struct list_head new_head, *p = list1->next, *q = list2->next, *temp;
+    INIT_LIST_HEAD(&new_head);
+    while (p != list1 && q != list2) {
+        if (cmp(p, q) > 0) {
+            temp = q;
+            q = q->next;
+        } else {
+            temp = p;
+            p = p->next;
+        }
+        list_del(temp);
+        list_add_tail(temp, &new_head);
+    }
+    if (p != list1) {
+        list_splice_tail_init(list1, &new_head);
+    }
+    if (q != list2) {
+        list_splice_tail_init(list2, &new_head);
+    }
+    list_splice(&new_head, list1);
+}
+
+static void recursive_merge(struct list_head *begin,
+                            struct list_head *end,
+                            bool descend)
+{
+    if (begin == end)
+        return;
+
+    struct list_head *fast = begin, *slow = begin;
+    while (fast != end && fast->next != end) {
+        slow = slow->next;
+        fast = fast->next->next;
+    }
+
+    recursive_merge(begin, slow, descend);
+    recursive_merge(slow->next, end, descend);
+
+    merge_two_list(list_entry(begin, queue_contex_t, chain)->q,
+                   list_entry(slow->next, queue_contex_t, chain)->q, descend);
+}
+
 /* Merge all the queues into one sorted queue, which is in ascending/descending
  * order */
 int q_merge(struct list_head *head, bool descend)
 {
+    if (!head || list_empty(head))
+        return 0;
+
+    recursive_merge(head->next, head->prev, descend);
+
     // https://leetcode.com/problems/merge-k-sorted-lists/
-    return 0;
+    return q_size(list_entry(head->next, queue_contex_t, chain)->q);
 }
