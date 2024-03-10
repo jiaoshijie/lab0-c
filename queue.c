@@ -206,8 +206,7 @@ void q_swap(struct list_head *head)
         if (!prev) {
             prev = node;
         } else {
-            list_del(prev);
-            list_add(prev, node);
+            list_move(prev, node);
             prev = NULL;
         }
     }
@@ -223,8 +222,7 @@ void q_reverse(struct list_head *head)
     struct list_head *tail = head->prev;
     while (head->next != tail) {
         struct list_head *node = head->next;
-        list_del(node);
-        list_add(node, tail);
+        list_move(node, tail);
     }
 }
 
@@ -244,8 +242,7 @@ void q_reverseK(struct list_head *head, int k)
             temp_head = new_head->next;
             while (new_head->next != tail) {
                 temp = new_head->next;
-                list_del(temp);
-                list_add(temp, tail);
+                list_move(temp, tail);
             }
             new_head = temp_head;
         }
@@ -253,8 +250,8 @@ void q_reverseK(struct list_head *head, int k)
     // https://leetcode.com/problems/reverse-nodes-in-k-group/
 }
 
-#if 1
-// NOTE: Quick sort in the worst situation will failed and the STACK_LEVEL also
+#if 0
+// NOTE: Quick sort(non-recursive) in the worst situation will failed and the STACK_LEVEL also
 // is a problem
 /* Sort elements of queue in ascending/descending order */
 void q_sort(struct list_head *head, bool descend)
@@ -285,8 +282,7 @@ void q_sort(struct list_head *head, bool descend)
                 if (L != R) {
                     temp = R;
                     R = R->prev;
-                    list_del(temp);
-                    list_add_tail(temp, L);
+                    list_move_tail(temp, L);
                 }
                 while (L != R && cmp(L, pivot) < 0) {
                     L = L->next;
@@ -294,8 +290,7 @@ void q_sort(struct list_head *head, bool descend)
                 if (L != R) {
                     temp = L;
                     L = L->next;
-                    list_del(temp);
-                    list_add(temp, R);
+                    list_move(temp, R);
                 }
             }
             if (cmp(L, pivot) > 0) {
@@ -317,59 +312,46 @@ void q_sort(struct list_head *head, bool descend)
     }
 }
 #endif
-#if 0
+
+#if 1
+static void recursive_merge_sort(struct list_head *head, bool descend)
+{
+    if (!head || list_empty(head) || list_is_singular(head))
+        return;
+    struct list_head new, *p = head->next, *q = head->prev, *temp;
+    while (p != q && p->next != q) {
+        p = p->next;
+        q = q->prev;
+    }
+    INIT_LIST_HEAD(&new);
+    list_cut_position(&new, head, p);
+
+    recursive_merge_sort(head, descend);
+    recursive_merge_sort(&new, descend);
+
+    p = head->next;
+    q = new.next;
+    while (p != head && q != &new) {
+        if ((cmp(p, q) > 0) ^ descend) {
+            temp = q;
+            q = q->next;
+            list_move_tail(temp, p);
+        } else {
+            p = p->next;
+        }
+    }
+    // NOTE: if p != head, do not need do anything.
+    if (q != &new) {
+        list_splice_tail(&new, head);
+    }
+}
 /* Sort elements of queue in ascending/descending order */
 void q_sort(struct list_head *head, bool descend)
 {
     if (!head || list_empty(head) || list_is_singular(head))
         return;
 
-    void recursive_merge(struct list_head **beg, struct list_head **end, bool descend) {
-        if (*beg == *end) return;
-        struct list_head *p = *beg, *q = *end, *mid, *midn, *temp;
-
-        while (p != q && p->next != q) {
-            p = p->next;
-            q = q->prev;
-        }
-        mid = p;
-        midn = mid->next;
-        recursive_merge(beg, &mid, descend);
-        recursive_merge(&midn, end, descend);
-
-        if (cmp(*beg, midn) > 0) {
-            temp = midn->next;
-            list_del(midn);
-            list_add_tail(midn, *beg);
-            *beg = midn;
-            midn = temp;
-        }
-        p = (*beg)->next;
-        q = midn;
-
-        while (p != mid->next && q != (*end)->next) {
-            if (cmp(p, q) > 0) {
-                temp = q;
-                q = q->next;
-                list_del(q);
-                list_add_tail(q, p);
-            } else {
-                p = p->next;
-            }
-        }
-
-        // TODO: this situation maybe just do nothing
-        // if (q != (*end)->next) {
-        // }
-
-        if (p != mid->next) {
-            *end = mid;
-        }
-
-    }
-
-    struct list_head *b = head->next, *e = head->prev;
-    recursive_merge(&b, &e, descend);
+    recursive_merge_sort(head, descend);
 }
 #endif
 
@@ -445,15 +427,14 @@ static void merge_two_list(struct list_head *list1,
     struct list_head new_head, *p = list1->next, *q = list2->next, *temp;
     INIT_LIST_HEAD(&new_head);
     while (p != list1 && q != list2) {
-        if (cmp(p, q) > 0) {
+        if ((cmp(p, q) > 0) ^ descend) {
             temp = q;
             q = q->next;
         } else {
             temp = p;
             p = p->next;
         }
-        list_del(temp);
-        list_add_tail(temp, &new_head);
+        list_move_tail(temp, &new_head);
     }
     if (p != list1) {
         list_splice_tail_init(list1, &new_head);
