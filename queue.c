@@ -37,9 +37,7 @@ void q_free(struct list_head *head)
 
     list_for_each_safe (node, safe, head) {
         list_del(node);
-        element_t *ele = list_entry(node, element_t, list);
-        free(ele->value);
-        free(ele);
+        q_release_element(list_entry(node, element_t, list));
     }
 
     free(head);
@@ -145,9 +143,7 @@ bool q_delete_mid(struct list_head *head)
         right = right->prev;
     }
     list_del(left);
-    element_t *ele = list_entry(left, element_t, list);
-    free(ele->value);
-    free(ele);
+    q_release_element(list_entry(left, element_t, list));
     // https://leetcode.com/problems/delete-the-middle-node-of-a-linked-list/
     return true;
 }
@@ -167,22 +163,19 @@ bool q_delete_dup(struct list_head *head)
         if (prev_ele && !strcmp(prev_ele->value, ele->value)) {
             is_dup = true;
             list_del(&ele->list);
-            free(ele->value);
-            free(ele);
+            q_release_element(ele);
         } else {
             if (is_dup) {
                 is_dup = false;
                 list_del(&prev_ele->list);
-                free(prev_ele->value);
-                free(prev_ele);
+                q_release_element(prev_ele);
             }
             prev_ele = ele;
         }
     }
     if (is_dup) {
         list_del(&prev_ele->list);
-        free(prev_ele->value);
-        free(prev_ele);
+        q_release_element(prev_ele);
     }
     // https://leetcode.com/problems/remove-duplicates-from-sorted-list-ii/
     return true;
@@ -363,8 +356,7 @@ int q_ascend(struct list_head *head)
             temp = p;
             p = p->prev;
             list_del(temp);
-            free(ele->value);
-            free(ele);
+            q_release_element(ele);
         } else {
             size++;
             min = ele;
@@ -394,8 +386,7 @@ int q_descend(struct list_head *head)
             temp = p;
             p = p->prev;
             list_del(temp);
-            free(ele->value);
-            free(ele);
+            q_release_element(ele);
         } else {
             size++;
             max = ele;
