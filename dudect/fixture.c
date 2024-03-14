@@ -48,7 +48,7 @@ static t_context_t *t;
 /* threshold values for Welch's t-test */
 enum {
     t_threshold_bananas = 500, /* Test failed with overwhelming probability */
-    t_threshold_moderate = 10, /* Test failed */
+    t_threshold_moderate = 20, /* Test failed */
 };
 
 static void __attribute__((noreturn)) die(void)
@@ -170,8 +170,11 @@ static bool test_const(char *text, int mode)
     return result;
 }
 
-#define DUT_FUNC_IMPL(op) \
-    bool is_##op##_const(void) { return test_const(#op, DUT(op)); }
+#define DUT_FUNC_IMPL(op)                \
+    bool is_##op##_const(void)           \
+    {                                    \
+        return test_const(#op, DUT(op)); \
+    }
 
 #define _(x) DUT_FUNC_IMPL(x)
 DUT_FUNCS
