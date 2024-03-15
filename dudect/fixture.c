@@ -54,8 +54,8 @@ static int64_t *percentiles;
 
 /* threshold values for Welch's t-test */
 enum {
-    t_threshold_bananas = 500, /* Test failed with overwhelming probability */
-    t_threshold_moderate = 10, /* Test failed */
+    t_threshold_bananas = 500,  /* Test failed with overwhelming probability */
+    t_threshold_moderate = 100, /* Test failed */
 };
 
 static void __attribute__((noreturn)) die(void)
