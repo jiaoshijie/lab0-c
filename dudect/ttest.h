@@ -1,6 +1,7 @@
 #ifndef DUDECT_TTEST_H
 #define DUDECT_TTEST_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 typedef struct {
@@ -11,6 +12,6 @@ typedef struct {
 
 void t_push(t_context_t *ctx, double x, uint8_t class);
 double t_compute(t_context_t *ctx);
-void t_init(t_context_t *ctx);
+void t_init(t_context_t **ctx, size_t ctx_size);
 
 #endif

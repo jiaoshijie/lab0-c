@@ -41,14 +41,21 @@
 #include "ttest.h"
 
 #define ENOUGH_MEASURE 10000
+#define NUMBER_PERCENTILES 100
 #define TEST_TRIES 10
 
-static t_context_t *t;
+// 1 first order uncropped test
+// NUMBER_PERCENTILES tests
+// 1 second order test
+#define DUDECT_TESTS (1 + NUMBER_PERCENTILES + 1)
+
+static t_context_t *t[DUDECT_TESTS];
+static int64_t *percentiles;
 
 /* threshold values for Welch's t-test */
 enum {
     t_threshold_bananas = 500, /* Test failed with overwhelming probability */
-    t_threshold_moderate = 20, /* Test failed */
+    t_threshold_moderate = 10, /* Test failed */
 };
 
 static void __attribute__((noreturn)) die(void)
@@ -66,21 +73,55 @@ static void differentiate(int64_t *exec_times,
 
 static void update_statistics(const int64_t *exec_times, uint8_t *classes)
 {
-    for (size_t i = 0; i < N_MEASURES; i++) {
+    for (size_t i = DROP_SIZE /* discard the first few measurements */;
+         i < N_MEASURES; i++) {
         int64_t difference = exec_times[i];
         /* CPU cycle counter overflowed or dropped measurement */
-        if (difference <= 0)
+        if (difference < 0)
             continue;
 
         /* do a t-test on the execution time */
-        t_push(t, difference, classes[i]);
+        t_push(t[0], difference, classes[i]);
+
+        // t-test on cropped execution times, for several cropping thresholds.
+        for (size_t crop_index = 0; crop_index < NUMBER_PERCENTILES;
+             crop_index++) {
+            if (difference < percentiles[crop_index]) {
+                t_push(t[crop_index + 1], difference, classes[i]);
+            }
+        }
+
+        // TODO: do other things later
+        // second-order test (only if we have more than 10000 measurements).
+        // Centered product pre-processing.
+        if (t[0]->n[0] > 10000) {
+            double centered = (double) difference - t[0]->mean[classes[i]];
+            t_push(t[1 + NUMBER_PERCENTILES], centered * centered, classes[i]);
+        }
     }
+}
+
+static size_t min_test()
+{
+    size_t ret = 0;
+    double min = t_threshold_bananas;
+    for (size_t i = 0; i < DUDECT_TESTS; i++) {
+        if (t[i]->n[0] > ENOUGH_MEASURE) {
+            double x = fabs(t_compute(t[i]));
+            if (min > x) {
+                min = x;
+                ret = i;
+            }
+        }
+    }
+    return ret;
 }
 
 static bool report(void)
 {
-    double max_t = fabs(t_compute(t));
-    double number_traces_max_t = t->n[0] + t->n[1];
+    size_t index = min_test();
+    double max_t = fabs(t_compute(t[index]));
+    double number_traces_max_t = t[index]->n[0] + t[index]->n[1];
     double max_tau = max_t / sqrt(number_traces_max_t);
 
     printf("\033[A\033[2K");
@@ -148,25 +189,33 @@ static bool doit(int mode)
 static void init_once(void)
 {
     init_dut();
-    t_init(t);
+    t_init(t, DUDECT_TESTS);
+    memset(percentiles, 0, sizeof(int64_t) * NUMBER_PERCENTILES);
 }
 
 static bool test_const(char *text, int mode)
 {
     bool result = false;
-    t = malloc(sizeof(t_context_t));
+    for (int i = 0; i < DUDECT_TESTS; i++) {
+        t[i] = malloc(sizeof(t_context_t));
+    }
+
+    percentiles = malloc(sizeof(int64_t) * NUMBER_PERCENTILES);
 
     for (int cnt = 0; cnt < TEST_TRIES; ++cnt) {
         printf("Testing %s...(%d/%d)\n\n", text, cnt, TEST_TRIES);
         init_once();
-        for (int i = 0; i < ENOUGH_MEASURE / (N_MEASURES - DROP_SIZE * 2) + 1;
-             ++i)
+        for (int i = 0; i < ENOUGH_MEASURE / (N_MEASURES - DROP_SIZE) + 1; ++i)
             result = doit(mode);
         printf("\033[A\033[2K\033[A\033[2K");
         if (result)
             break;
     }
-    free(t);
+
+    free(percentiles);
+    for (int i = 0; i < DUDECT_TESTS; i++) {
+        free(t[i]);
+    }
     return result;
 }
 

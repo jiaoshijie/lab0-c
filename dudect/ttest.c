@@ -38,12 +38,14 @@ double t_compute(t_context_t *ctx)
     return t_value;
 }
 
-void t_init(t_context_t *ctx)
+void t_init(t_context_t **ctx, size_t size)
 {
-    for (int class = 0; class < 2; class ++) {
-        ctx->mean[class] = 0.0;
-        ctx->m2[class] = 0.0;
-        ctx->n[class] = 0.0;
+    for (int i = 0; i < size; i++) {
+        for (int class = 0; class < 2; class ++) {
+            ctx[i]->mean[class] = 0.0;
+            ctx[i]->m2[class] = 0.0;
+            ctx[i]->n[class] = 0.0;
+        }
     }
     return;
 }
