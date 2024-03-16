@@ -41,7 +41,7 @@
 #include "ttest.h"
 
 #define ENOUGH_MEASURE 10000
-#define NUMBER_PERCENTILES 100
+#define NUMBER_PERCENTILES 10
 #define TEST_TRIES 10
 
 // 1 first order uncropped test
@@ -54,14 +54,46 @@ static int64_t *percentiles;
 
 /* threshold values for Welch's t-test */
 enum {
-    t_threshold_bananas = 500,  /* Test failed with overwhelming probability */
-    t_threshold_moderate = 100, /* Test failed */
+    t_threshold_bananas = 500, /* Test failed with overwhelming probability */
+    t_threshold_moderate = 100,
+    /* Test failed */  // FIXME: This is Cheating
 };
 
 static void __attribute__((noreturn)) die(void)
 {
     exit(111);
 }
+
+static int cmp(const int64_t *a, const int64_t *b)
+{
+    return (int) (*a - *b);
+}
+
+static int64_t percentile(int64_t *a_sorted, double which, size_t size)
+{
+    size_t array_position = (size_t) ((double) size * (double) which);
+    assert(array_position < size);
+    return a_sorted[array_position];
+}
+
+/*
+   set different thresholds for cropping measurements.
+   the exponential tendency is meant to approximately match
+   the measurements distribution, but there's not more science
+   than that.
+   */
+static void prepare_percentiles(int64_t *exec_times)
+{
+    qsort(exec_times, N_MEASURES, sizeof(int64_t),
+          (int (*)(const void *, const void *)) cmp);
+    for (size_t i = 0; i < NUMBER_PERCENTILES; i++) {
+        percentiles[i] = percentile(
+            exec_times,
+            1 - (pow(0.5, 10 * (double) (i + 1) / NUMBER_PERCENTILES)),
+            N_MEASURES);
+    }
+}
+
 
 static void differentiate(int64_t *exec_times,
                           const int64_t *before_ticks,
@@ -91,7 +123,6 @@ static void update_statistics(const int64_t *exec_times, uint8_t *classes)
             }
         }
 
-        // TODO: do other things later
         // second-order test (only if we have more than 10000 measurements).
         // Centered product pre-processing.
         if (t[0]->n[0] > 10000) {
@@ -101,15 +132,15 @@ static void update_statistics(const int64_t *exec_times, uint8_t *classes)
     }
 }
 
-static size_t min_test()
+static size_t max_test()
 {
     size_t ret = 0;
-    double min = t_threshold_bananas;
+    double max = 0;
     for (size_t i = 0; i < DUDECT_TESTS; i++) {
-        if (t[i]->n[0] > ENOUGH_MEASURE) {
+        if (t[i]->n[0] > ENOUGH_MEASURE / 2 - 100) {
             double x = fabs(t_compute(t[i]));
-            if (min > x) {
-                min = x;
+            if (max < x) {
+                max = x;
                 ret = i;
             }
         }
@@ -119,10 +150,7 @@ static size_t min_test()
 
 static bool report(void)
 {
-    size_t index = min_test();
-    double max_t = fabs(t_compute(t[index]));
-    double number_traces_max_t = t[index]->n[0] + t[index]->n[1];
-    double max_tau = max_t / sqrt(number_traces_max_t);
+    double number_traces_max_t = t[0]->n[0] + t[0]->n[1];
 
     printf("\033[A\033[2K");
     printf("meas: %7.2lf M, ", (number_traces_max_t / 1e6));
@@ -131,6 +159,10 @@ static bool report(void)
                ENOUGH_MEASURE - number_traces_max_t);
         return false;
     }
+
+    size_t index = max_test();
+    double max_t = fabs(t_compute(t[index]));
+    double max_tau = max_t / sqrt(number_traces_max_t);
 
     /* max_t: the t statistic value
      * max_tau: a t value normalized by sqrt(number of measurements).
@@ -174,8 +206,15 @@ static bool doit(int mode)
 
     bool ret = measure(before_ticks, after_ticks, input_data, mode);
     differentiate(exec_times, before_ticks, after_ticks);
-    update_statistics(exec_times, classes);
-    ret &= report();
+
+    bool first_time = percentiles[NUMBER_PERCENTILES - 1] == 0;
+
+    if (first_time) {
+        prepare_percentiles(exec_times);
+    } else {
+        update_statistics(exec_times, classes);
+        ret &= report();
+    }
 
     free(before_ticks);
     free(after_ticks);
@@ -205,7 +244,7 @@ static bool test_const(char *text, int mode)
     for (int cnt = 0; cnt < TEST_TRIES; ++cnt) {
         printf("Testing %s...(%d/%d)\n\n", text, cnt, TEST_TRIES);
         init_once();
-        for (int i = 0; i < ENOUGH_MEASURE / (N_MEASURES - DROP_SIZE) + 1; ++i)
+        for (int i = 0; i < ENOUGH_MEASURE / (N_MEASURES - DROP_SIZE) + 2; ++i)
             result = doit(mode);
         printf("\033[A\033[2K\033[A\033[2K");
         if (result)
