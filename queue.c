@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "list_sort.h"
 #include "queue.h"
 
 #define cmp(a, b)                                  \
@@ -233,6 +234,7 @@ void q_reverseK(struct list_head *head, int k)
     // https://leetcode.com/problems/reverse-nodes-in-k-group/
 }
 
+#if 0
 // Top-Buttom
 static void recursive_merge_sort(struct list_head *head, bool descend)
 {
@@ -272,6 +274,18 @@ void q_sort(struct list_head *head, bool descend)
         return;
 
     recursive_merge_sort(head, descend);
+}
+#endif
+
+void q_sort(struct list_head *head, bool descend)
+{
+    __attribute__((nonnull(1, 2))) int cmp_func(const struct list_head *a,
+                                                const struct list_head *b)
+    {
+        return (cmp(a, b) > 0) ^ descend;
+    }
+
+    list_sort(head, cmp_func);
 }
 
 /* Remove every node which has a node with a strictly less value anywhere to
