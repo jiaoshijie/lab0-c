@@ -233,70 +233,7 @@ void q_reverseK(struct list_head *head, int k)
     // https://leetcode.com/problems/reverse-nodes-in-k-group/
 }
 
-#if 0
-// NOTE: Quick sort(non-recursive) in the worst situation will failed and the STACK_LEVEL also
-// is a problem
-/* Sort elements of queue in ascending/descending order */
-void q_sort(struct list_head *head, bool descend)
-{
-    if (!head || list_empty(head) || list_is_singular(head))
-        return;
-
-#define STACK_LEVEL 10000  // NOTE: non-recursive quick sort max stack level
-
-    int sp = 0;  // stack pointer
-    struct list_head *beg[STACK_LEVEL], *end[STACK_LEVEL], *L, *R, *pivot,
-        *temp, *beg_flag, *end_flag;
-    beg[0] = head->next;
-    end[0] = head->prev;
-    while (sp >= 0) {
-        L = beg[sp];
-        R = end[sp];
-        beg_flag = L->prev;
-        end_flag = R->next;
-        if (L != R) {
-            pivot = L;
-            L = L->next;
-            list_del(pivot);
-            while (L != R) {
-                while (L != R && cmp(R, pivot) > 0) {
-                    R = R->prev;
-                }
-                if (L != R) {
-                    temp = R;
-                    R = R->prev;
-                    list_move_tail(temp, L);
-                }
-                while (L != R && cmp(L, pivot) < 0) {
-                    L = L->next;
-                }
-                if (L != R) {
-                    temp = L;
-                    L = L->next;
-                    list_move(temp, R);
-                }
-            }
-            if (cmp(L, pivot) > 0) {
-                list_add_tail(pivot, L);
-            } else {
-                list_add(pivot, L);
-            }
-
-            // TODO: if the range only contains a single one node, consider
-            // don't push this range to the stack.
-            beg[sp + 1] = pivot->next == end_flag ? pivot : pivot->next;
-            end[sp + 1] = end_flag->prev;
-            beg[sp] = beg_flag->next;
-            end[sp++] = pivot->prev == beg_flag ? pivot : pivot->prev;
-
-        } else {
-            sp--;
-        }
-    }
-}
-#endif
-
-#if 1
+// Top-Buttom
 static void recursive_merge_sort(struct list_head *head, bool descend)
 {
     if (!head || list_empty(head) || list_is_singular(head))
@@ -336,7 +273,6 @@ void q_sort(struct list_head *head, bool descend)
 
     recursive_merge_sort(head, descend);
 }
-#endif
 
 /* Remove every node which has a node with a strictly less value anywhere to
  * the right side of it */
